@@ -1,0 +1,48 @@
+@startuml
+' ---------- Диаграмма последовательности: Вернуть на доработку ----------
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "Руководитель" as Manager
+participant "WebClient" as Client
+participant "TaskService" as Service
+participant "PostgreSQL" as DB
+
+Manager -> Client: Вход в систему (JWT)
+activate Client
+
+Client -> Service: POST /api/tasks/{id}/return
+activate Service
+
+Service -> DB: SELECT task, user
+activate DB
+DB --> Service: данные
+deactivate DB
+
+alt Проверки не пройдены
+  Service --> Client: 400 Bad Request\n(нет задачи, статус или комментарий)
+else Проверки пройдены
+  Service -> DB: INSERT comment
+  activate DB
+  DB --> Service: comment_id
+  deactivate DB
+
+  Service -> DB: INSERT task_history
+  activate DB
+  DB --> Service: history_id
+  deactivate DB
+
+  Service -> DB: UPDATE task SET status
+  activate DB
+  DB --> Service: affected_rows
+  deactivate DB
+
+  Service --> Client: 200 OK
+end
+
+deactivate Service
+deactivate Client
+
+@enduml

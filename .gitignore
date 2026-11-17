@@ -1,0 +1,42 @@
+# Repository scope: TaskManagement application only
+/*
+!/.gitignore
+!/solutions/
+/solutions/*
+!/solutions/TaskManagement/
+
+# Local secrets
+**/appsettings.Local.json
+**/appsettings.*.local.json
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+
+# Build output and IDE
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+**/logs/
+**/__pycache__/
+*.pyc
+
+# Local HTTP credentials
+.postman/
+**/*.local.yaml
+
+# Captures may include Authorization headers and login credentials
+docs/lab3/shots/
+docs/lab3/diagrams/api-*.png
+docs/lab3/diagrams/backup/
+**/*.local.json
+# Lab 3 report embeds original authenticated API captures
+docs/lab3/lab3-report.docx
+
+# Obsolete solution backups
+*.broken

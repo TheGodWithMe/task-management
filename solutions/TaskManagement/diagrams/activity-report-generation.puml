@@ -1,0 +1,40 @@
+@startuml
+' ---------- Activity диаграмма: Формировать отчёт ----------
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam activityArrowColor #000000
+
+start
+
+:Руководитель выбирает проект и период;
+
+:ReportService получает запрос;
+
+if (Проект найден?) then (да)
+  :ReportService запрашивает задачи\nи справочник статусов;
+
+  repeat
+    :Подсчитать задачи в статусе;
+
+    :Подсчитать просроченные задачи;
+
+    :Вычислить долю от общего числа задач;
+
+    :Вычислить среднее время в статусе\nпо журналу истории;
+
+    :Добавить строку в отчёт;
+  repeat while (Остались статусы?) is (да)
+
+  :ReportService уточняет ФИО\nв IdentityService;
+
+  :Руководитель видит отчёт;
+  stop
+else (нет)
+  :404 «Проект не найден»;
+
+  :Руководитель видит сообщение об ошибке;
+  stop
+endif
+
+@enduml

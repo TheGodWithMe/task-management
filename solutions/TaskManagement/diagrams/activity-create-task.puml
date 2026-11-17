@@ -1,0 +1,37 @@
+@startuml
+' ---------- Activity диаграмма: Поставить задачу ----------
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam activityArrowColor #000000
+
+start
+
+:Руководитель открывает форму «Создать задачу»;
+
+:Заполняет название, описание, проект,\nисполнителя, приоритет и срок;
+
+if (Данные корректны?) then (да)
+  :TaskService проверяет проект,\nисполнителя и приоритет;
+
+  if (Связанные записи найдены?) then (да)
+    :TaskService создаёт задачу в БД;
+
+    :TaskService добавляет запись\nв журнал истории;
+
+    :TaskService возвращает задачу с ID;
+
+    :Руководитель видит задачу в списке;
+    stop
+  else (нет)
+    :TaskService возвращает 400\nс текстом ошибки;
+
+    :Руководитель исправляет данные;
+    stop
+  endif
+else (нет)
+  :WebClient показывает ошибку валидации;
+  stop
+endif
+
+@enduml

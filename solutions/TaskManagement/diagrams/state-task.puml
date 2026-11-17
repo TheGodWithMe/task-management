@@ -1,0 +1,53 @@
+﻿@startuml
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam nodesep 30
+skinparam ranksep 45
+skinparam state {
+  BackgroundColor #F8FAFC
+  BorderColor #243447
+  ArrowColor #243447
+  FontColor #1F2937
+}
+skinparam NoteBackgroundColor #FFF7ED
+skinparam NoteBorderColor #C6866A
+skinparam NoteFontSize 11
+
+state "Новая" as New
+state "Назначена" as Assigned
+state "В работе" as InWork
+state "На проверке" as Review
+state "Завершена" as Done
+state "Отменена" as Cancelled
+
+[*] --> New : создать задачу\nбез исполнителя
+[*] --> Assigned : поставить задачу\nс исполнителем
+New --> Assigned : назначить\nисполнителя
+Assigned --> InWork : начать работу\n(исполнитель)
+InWork --> Review : отправить\nна проверку\n(исполнитель)
+Review --> Done : принять задачу\n(руководитель)
+Review --> InWork : вернуть\nна доработку\n/ комментарий\nобязателен
+New --> Cancelled : отменить\n(руководитель)
+Assigned --> Cancelled : отменить\n(руководитель)
+InWork --> Cancelled : отменить\n(руководитель)
+Review --> Cancelled : отменить\n(руководитель)
+
+Done --> [*]
+Cancelled --> [*]
+
+note left of InWork
+  Исполнитель:
+  начать работу,
+  отправить на проверку
+end note
+
+note right of Review
+  Руководитель:
+  принять задачу,
+  вернуть на доработку
+  (с комментарием),
+  отменить задачу
+end note
+
+@enduml

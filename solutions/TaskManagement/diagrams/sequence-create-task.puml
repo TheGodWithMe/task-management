@@ -1,0 +1,63 @@
+@startuml
+' ---------- Диаграмма последовательности: Поставить задачу ----------
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "Руководитель" as Manager
+participant "WebClient" as Client
+participant "TaskService" as Service
+participant "PostgreSQL" as DB
+
+Manager -> Client: Вход в систему (JWT)
+activate Client
+
+Client -> Service: POST /api/tasks
+activate Service
+
+Service -> DB: SELECT project
+activate DB
+DB --> Service: Project
+deactivate DB
+
+Service -> DB: SELECT executor
+activate DB
+DB --> Service: User
+deactivate DB
+
+Service -> DB: SELECT priority
+activate DB
+DB --> Service: Priority
+deactivate DB
+
+Service -> DB: INSERT task
+activate DB
+DB --> Service: task_id
+deactivate DB
+
+Service -> DB: INSERT task_history
+activate DB
+DB --> Service: history_id
+deactivate DB
+
+Service --> Client: 200 OK, TaskResponse
+deactivate Service
+
+Manager -> Client: Просмотр созданной задачи
+activate Client
+
+Client -> Service: GET /api/tasks/{id}
+activate Service
+
+Service -> DB: SELECT task with project
+activate DB
+DB --> Service: Task
+deactivate DB
+
+Service --> Client: 200 OK, TaskResponse
+deactivate Service
+
+deactivate Client
+
+@enduml

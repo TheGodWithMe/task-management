@@ -1,0 +1,44 @@
+@startuml
+' ---------- Диаграмма последовательности: Формировать отчёт ----------
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "Руководитель" as Manager
+participant "WebClient" as Client
+participant "ReportService" as Report
+participant "TaskService" as Task
+participant "IdentityService" as Identity
+
+Manager -> Client: Выбор проекта и периода
+activate Client
+
+Client -> Report: GET /reports/project/{id}
+activate Report
+
+Report -> Task: GET /projects/{id}
+Task --> Report: ProjectResponse
+
+Report -> Task: GET /tasks?projectId={id}
+Task --> Report: TaskResponse[]
+
+Report -> Task: GET /catalogs/statuses
+Task --> Report: статусы
+
+loop по каждой задаче
+  Report -> Task: GET /catalogs/history/{id}
+  Task --> Report: TaskHistoryResponse[]
+end
+
+Report -> Identity: GET /users
+Identity --> Report: UserResponse[]
+
+Report --> Client: 200 OK, ProjectReportResponse
+deactivate Report
+
+Client --> Manager: Отчёт по статусам
+
+deactivate Client
+
+@enduml
