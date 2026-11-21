@@ -137,6 +137,37 @@ public class TasksController : ControllerBase
             : StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());
     }
 
+    [HttpPost("{id:long}/executor")]
+    public async Task<ActionResult> AssignExecutor(long id, [FromBody] long executorId)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/tasks/{id}/executor")
+        {
+            Content = JsonContent.Create(executorId)
+        };
+        ForwardAuthorization(request);
+        using var response = await _httpClient.SendAsync(request);
+        return new ContentResult
+        {
+            StatusCode = (int)response.StatusCode,
+            ContentType = "application/json",
+            Content = await response.Content.ReadAsStringAsync()
+        };
+    }
+
+    [HttpPost("{id:long}/cancel")]
+    public async Task<ActionResult> Cancel(long id)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/tasks/{id}/cancel");
+        ForwardAuthorization(request);
+        using var response = await _httpClient.SendAsync(request);
+        return new ContentResult
+        {
+            StatusCode = (int)response.StatusCode,
+            ContentType = "application/json",
+            Content = await response.Content.ReadAsStringAsync()
+        };
+    }
+
     private void ForwardAuthorization(HttpRequestMessage request)
     {
         if (Request.Headers.Authorization.ToString() is { Length: > 0 } header)

@@ -11,7 +11,9 @@ XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
 var logger = LogManager.GetLogger(typeof(Program));
 logger.Info("Запуск WebClient");
 
-builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
+builder.Services.ConfigureHttpClientDefaults(http =>
+    http.ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(15)));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -39,8 +41,8 @@ builder.Services.AddHttpClient("ReportService", client =>
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/api/auth/login";
-        options.AccessDeniedPath = "/api/auth/login";
+        options.LoginPath = "/account/login";
+        options.AccessDeniedPath = "/account/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
     });
 
@@ -51,6 +53,8 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+app.UseStaticFiles();
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 

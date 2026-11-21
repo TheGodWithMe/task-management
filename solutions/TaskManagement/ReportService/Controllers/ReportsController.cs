@@ -133,6 +133,26 @@ public class ReportsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("project/{projectId:long}/export")]
+    public async Task<ActionResult> Export(long projectId, DateTime start, DateTime end)
+    {
+        var report = await GetProjectReport(projectId, start, end);
+        if (report.Result is not OkObjectResult { Value: ProjectReportResponse data })
+            return report.Result ?? StatusCode(500);
+
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Статус;Количество;Просрочено;Доля процентов;Среднее время в текущем статусе ч");
+        foreach (var row in data.StatusReports)
+        {
+            csv.AppendLine(string.Join(";", row.StatusName, row.TaskCount, row.OverdueCount,
+                row.Percentage.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                row.AverageTimeInStatusHours.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        var bytes = System.Text.Encoding.UTF8.GetPreamble()
+            .Concat(System.Text.Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        return File(bytes, "text/csv; charset=utf-8", $"project-{projectId}-report.csv");
+    }
+
     // Запросы к другим микросервисам выполняются с токеном вызывающего,
     // чтобы права и роль пользователя сохранялись по всей цепочке.
     private async Task<HttpResponseMessage> SendAsync(HttpClient client, string relativeUrl)

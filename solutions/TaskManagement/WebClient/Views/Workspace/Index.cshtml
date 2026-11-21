@@ -1,0 +1,277 @@
+@model WorkspaceModel
+@{
+    var manager = User.IsInRole("Руководитель проекта");
+    var statuses = new[] { "Новая", "Назначена", "В работе", "На проверке", "Завершена", "Отменена" };
+    var priorities = new[] { "Низкий", "Средний", "Высокий", "Критический" };
+    var project = Model.Projects.FirstOrDefault(p => p.Id == Model.ProjectId);
+}
+<div class="page-heading">
+<div>
+<p class="eyebrow">@(manager ? "Руководитель проекта" : "Исполнитель")</p>
+<h1>@(project?.Name ?? (manager ? "Задачи проектов" : "Мои задачи"))</h1>
+</div>
+<span class="count">@Model.Tasks.Count задач</span>
+</div>
+<div class="workspace">
+<aside>
+<h2>Проекты</h2>
+<a class="project-link" href="/">Все проекты</a>
+@foreach(var item in Model.Projects)
+{
+<a class="project-link @(Model.ProjectId == item.Id ? "active" : "")" href="/?projectId=@item.Id">@item.Name
+@if(item.IsArchived){<small>Завершён</small>}
+</a>
+}
+@if(manager)
+{
+<details>
+<summary>Создать проект</summary>
+<form action="/workspace/run" method="post">@Html.AntiForgeryToken()
+<input type="hidden" name="operation" value="project" />
+<label>Название<input name="name" required maxlength="200" />
+</label>
+<label>Описание<textarea name="description" maxlength="2000">
+</textarea>
+</label>
+<button>Создать</button>
+</form>
+</details>
+}
+</aside>
+<div class="content">
+<form class="filters" method="get" action="/">
+@if(Model.ProjectId.HasValue){<input type="hidden" name="projectId" value="@Model.ProjectId" />}
+<label>Статус<select name="status">
+<option value="">Все статусы</option>
+@foreach(var status in statuses){<option selected="@(Model.Status == status)" value="@status">@status</option>}
+</select>
+</label>
+<label>Приоритет<select name="priority">
+<option value="">Все приоритеты</option>
+@foreach(var priority in priorities){<option selected="@(Model.Priority == priority)" value="@priority">@priority</option>}
+</select>
+</label>
+<button class="secondary">Применить</button>
+</form>
+@if(manager && project != null && !project.IsArchived)
+{
+<details class="panel">
+<summary>Поставить задачу</summary>
+<form method="post" action="/workspace/run" class="form-grid">@Html.AntiForgeryToken()
+<input type="hidden" name="operation" value="create" />
+<input type="hidden" name="projectId" value="@project.Id" />
+<label>Название<input name="name" required maxlength="200" />
+</label>
+<label>Исполнитель<select name="executorId">
+<option value="0">Назначить позже</option>
+@foreach(var person in Model.Participants){<option value="@person.ExecutorId">@person.ExecutorName</option>}
+</select>
+</label>
+<label>Приоритет<select name="priority">@foreach(var priority in priorities){<option selected="@(priority == "Средний")">@priority</option>}
+</select>
+</label>
+<label>Срок<input name="deadline" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+</label>
+<label class="full">Описание<textarea name="description" maxlength="5000">
+</textarea>
+</label>
+<button>Поставить задачу</button>
+</form>
+</details>
+}
+<section class="panel task-list">
+<h2>Задачи</h2>
+@if(Model.Tasks.Count == 0){<p class="empty">По выбранным условиям задач пока нет.</p>}
+else
+{
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Задача</th>
+<th>Статус</th>
+<th>Исполнитель</th>
+<th>Срок</th>
+</tr>
+</thead>
+<tbody>
+@foreach(var task in Model.Tasks)
+{
+<tr>
+<td>
+<a asp-action="Index" asp-route-projectId="@task.ProjectId" asp-route-taskId="@task.Id"
+   asp-route-status="@Model.Status" asp-route-priority="@Model.Priority" asp-fragment="task-details">
+<small>№ @task.Number · @task.Priority</small>@task.Name</a>
+@if(!Model.ProjectId.HasValue){<small>@task.ProjectName</small>}
+</td>
+<td>
+<span class="status">@task.Status</span>
+</td>
+<td>@(string.IsNullOrEmpty(task.ExecutorName) ? "Не назначен" : task.ExecutorName)</td>
+<td class="@(task.Overdue ? "overdue" : "")">@task.Deadline.ToLocalTime().ToString("dd.MM.yyyy")@if(task.Overdue){<small>Просрочена</small>}
+</td>
+</tr>
+}
+</tbody>
+</table>
+</div>
+}
+</section>
+@if(Model.Details is { } detail)
+{
+var taskAction = Url.Action("Run", new { filterStatus = Model.Status, filterPriority = Model.Priority });
+<section class="panel" id="task-details" tabindex="-1">
+@if(TempData["Error"] is string taskError)
+{
+    <div class="notice error" role="alert">@taskError</div>
+}
+@if(TempData["Success"] is string taskSuccess)
+{
+    <div class="notice success" role="status">@taskSuccess</div>
+}
+<p class="eyebrow">Задача № @detail.Task.Number</p>
+<h2>@detail.Task.Name</h2>
+<p class="description">@detail.Task.Description</p>
+<div class="actions">
+@if(manager && detail.Task.Status == "На проверке")
+{
+<form action="@taskAction" method="post">@Html.AntiForgeryToken()<input type="hidden" name="operation" value="return" />
+<input type="hidden" name="id" value="@detail.Task.Id" />
+<input type="hidden" name="projectId" value="@detail.Task.ProjectId" />
+<label>Замечания к результату<textarea name="text" required maxlength="5000">
+</textarea>
+</label>
+<button class="secondary">Вернуть на доработку</button>
+</form>
+}
+@if((manager && detail.Task.Status == "На проверке") || (!manager && (detail.Task.Status == "Назначена" || detail.Task.Status == "В работе")))
+{
+<form action="@taskAction" method="post">@Html.AntiForgeryToken()<input type="hidden" name="operation" value="status" />
+<input type="hidden" name="id" value="@detail.Task.Id" />
+<input type="hidden" name="projectId" value="@detail.Task.ProjectId" />
+<input type="hidden" name="newStatus" value="@(manager ? "Завершена" : detail.Task.Status == "Назначена" ? "В работе" : "На проверке")" />
+<button>@(manager ? "Принять задачу" : detail.Task.Status == "Назначена" ? "Начать работу" : "Отправить на проверку")</button>
+</form>
+}
+@if(manager && new[] { "Новая", "Назначена", "В работе" }.Contains(detail.Task.Status))
+{
+<form action="@taskAction" method="post">@Html.AntiForgeryToken()<input type="hidden" name="operation" value="assign" />
+<input type="hidden" name="id" value="@detail.Task.Id" />
+<input type="hidden" name="projectId" value="@detail.Task.ProjectId" />
+<label>Назначить исполнителя<select name="executorId" required>@foreach(var person in Model.Participants){<option selected="@(person.ExecutorId == detail.Task.ExecutorId)" value="@person.ExecutorId">@person.ExecutorName</option>}
+</select>
+</label>
+<button class="secondary">Назначить</button>
+</form>
+}
+@if(manager && detail.Task.Status != "Завершена" && detail.Task.Status != "Отменена")
+{
+<form action="@taskAction" method="post">@Html.AntiForgeryToken()<input type="hidden" name="operation" value="cancel" />
+<input type="hidden" name="id" value="@detail.Task.Id" />
+<input type="hidden" name="projectId" value="@detail.Task.ProjectId" />
+<button class="danger">Отменить задачу</button>
+</form>
+}
+</div>
+<h3>Комментарии</h3>
+@foreach(var comment in detail.Comments){<article class="entry">
+<small>@comment.AuthorName · @comment.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+<p>@comment.Text</p>
+</article>}
+<form action="@taskAction" method="post">@Html.AntiForgeryToken()<input type="hidden" name="operation" value="comment" />
+<input type="hidden" name="id" value="@detail.Task.Id" />
+<input type="hidden" name="projectId" value="@detail.Task.ProjectId" />
+<label>Новый комментарий<textarea name="text" required maxlength="5000">
+</textarea>
+</label>
+<button class="secondary">Добавить комментарий</button>
+</form>
+<details>
+<summary>История изменений</summary>@foreach(var entry in detail.History){<article class="entry">
+<small>@entry.ChangedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") · @entry.AuthorName</small>
+<p>@entry.FromStatus → @entry.ToStatus</p>
+<p>@entry.Comment</p>
+</article>}
+</details>
+</section>
+}
+@if(manager && project != null)
+{
+<details class="panel">
+<summary>Настройки проекта и участники</summary>
+@if(!project.IsArchived)
+{
+<form class="form-grid" action="/workspace/run" method="post">@Html.AntiForgeryToken()<input type="hidden" name="operation" value="editProject" />
+<input type="hidden" name="id" value="@project.Id" />
+<input type="hidden" name="projectId" value="@project.Id" />
+<label>Название<input name="name" value="@project.Name" required maxlength="200" />
+</label>
+<label>Описание<textarea name="description" maxlength="2000">@project.Description</textarea>
+</label>
+<button class="secondary">Сохранить проект</button>
+</form>
+<form action="/workspace/run" method="post">@Html.AntiForgeryToken()<input type="hidden" name="operation" value="participant" />
+<input type="hidden" name="projectId" value="@project.Id" />
+<label>Добавить участника<select name="executorId" required>@foreach(var person in Model.Users.Where(u => u.Role == "Исполнитель" && !Model.Participants.Any(p => p.ExecutorId == u.Id))){<option value="@person.Id">@person.FullName</option>}
+</select>
+</label>
+<button class="secondary">Добавить</button>
+</form>
+<form action="/workspace/run" method="post">@Html.AntiForgeryToken()<input type="hidden" name="operation" value="complete" />
+<input type="hidden" name="id" value="@project.Id" />
+<input type="hidden" name="projectId" value="@project.Id" />
+<button class="danger">Завершить проект</button>
+</form>
+}
+<p>@string.Join(", ", Model.Participants.Select(p => p.ExecutorName))</p>
+</details>
+<section class="panel">
+<h2>Отчёт по статусам</h2>
+<form method="get" action="/" class="filters">
+<input type="hidden" name="projectId" value="@project.Id" />
+<input type="hidden" name="report" value="true" />
+<label>Созданы с<input name="start" type="date" value="@Model.Start.ToString("yyyy-MM-dd")" required />
+</label>
+<label>По<input name="end" type="date" value="@Model.End.ToString("yyyy-MM-dd")" required />
+</label>
+<button>Сформировать</button>
+</form>
+@if(Model.Report is { } report)
+{
+<p>Задач за период — @report.TotalTasks</p>
+<div class="chart" aria-label="Распределение задач по текущим статусам">
+@foreach(var row in report.StatusReports) { <div class="chart-row">
+<span>@row.StatusName</span>
+<meter min="0" max="100" value="@row.Percentage.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@row.StatusName">
+</meter>
+<span>@row.Percentage %</span>
+</div> }
+</div>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Текущий статус</th>
+<th>Задач</th>
+<th>Просрочено</th>
+<th>Доля, %</th>
+<th>В статусе, ч</th>
+</tr>
+</thead>
+<tbody>
+@foreach(var row in report.StatusReports){<tr>
+<td>@row.StatusName</td>
+<td>@row.TaskCount</td>
+<td>@row.OverdueCount</td>
+<td>@row.Percentage</td>
+<td>@row.AverageTimeInStatusHours</td>
+</tr>}
+</tbody>
+</table>
+</div>
+<a class="button secondary" href="/workspace/export?projectId=@project.Id&start=@Model.Start.ToString("yyyy-MM-dd")&end=@Model.End.ToString("yyyy-MM-dd")">Скачать CSV</a>
+}
+</section>
+}
+</div>
+</div>

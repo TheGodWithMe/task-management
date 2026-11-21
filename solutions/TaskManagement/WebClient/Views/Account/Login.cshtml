@@ -1,0 +1,12 @@
+<section class="login">
+<p class="eyebrow">Рабочее пространство проекта</p>
+<h1>Вход в систему</h1>
+<form method="post" action="/account/login">
+@Html.AntiForgeryToken()
+<label>Логин<input name="login" autocomplete="username" required autofocus maxlength="100" />
+</label>
+<label>Пароль<input name="password" type="password" autocomplete="current-password" required />
+</label>
+<button>Войти</button>
+</form>
+</section>

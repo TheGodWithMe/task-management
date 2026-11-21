@@ -174,6 +174,36 @@ public class ProjectsController : ControllerBase
             JoinedAt = participation.JoinedAt
         });
     }
+    [HttpPut("{id:long}")]
+    [Authorize(Roles = "Руководитель проекта")]
+    public async System.Threading.Tasks.Task<ActionResult> Update(long id, ProjectResponse request)
+    {
+        var project = await _context.Projects.FindAsync(id);
+        if (project == null) return NotFound();
+        if (!await CanAccessProject(project)) return Forbid();
+        if (project.IsArchived || string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "Проверьте название и состояние проекта" });
+        project.Name = request.Name.Trim();
+        project.Description = request.Description;
+        await _context.SaveChangesAsync();
+        return Ok(new { message = "Проект изменен" });
+    }
+
+    [HttpPost("{id:long}/complete")]
+    [Authorize(Roles = "Руководитель проекта")]
+    public async System.Threading.Tasks.Task<ActionResult> Complete(long id)
+    {
+        var project = await _context.Projects.FindAsync(id);
+        if (project == null) return NotFound();
+        if (!await CanAccessProject(project)) return Forbid();
+        if (await _context.Tasks.AnyAsync(t => t.ProjectId == id &&
+            t.Status != "Завершена" && t.Status != "Отменена"))
+            return BadRequest(new { message = "Сначала завершите или отмените задачи проекта" });
+        project.IsArchived = true;
+        await _context.SaveChangesAsync();
+        return Ok(new { message = "Проект завершен" });
+    }
+
     private async System.Threading.Tasks.Task<bool> CanAccessProject(Project project)
     {
         var userId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

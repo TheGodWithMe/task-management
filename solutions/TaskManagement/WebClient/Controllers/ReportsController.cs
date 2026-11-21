@@ -49,6 +49,19 @@ public class ReportsController : ControllerBase
             }));
     }
 
+    [HttpGet("project/{projectId:long}/export")]
+    public async Task<ActionResult> Export(long projectId, DateTime startDate, DateTime endDate)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"api/reports/project/{projectId}/export?start={startDate:yyyy-MM-dd}&end={endDate:yyyy-MM-dd}");
+        ForwardAuthorization(request);
+        using var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+            return StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());
+        return File(await response.Content.ReadAsByteArrayAsync(), "text/csv; charset=utf-8",
+            $"project-{projectId}-report.csv");
+    }
+
     private void ForwardAuthorization(HttpRequestMessage request)
     {
         if (Request.Headers.Authorization.ToString() is { Length: > 0 } header)

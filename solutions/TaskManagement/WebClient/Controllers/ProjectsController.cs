@@ -74,6 +74,37 @@ public class ProjectsController : ControllerBase
             : StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());
     }
 
+    [HttpPut("{id:long}")]
+    public async Task<ActionResult> Update(long id, [FromBody] object body)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"api/projects/{id}")
+        {
+            Content = JsonContent.Create(body)
+        };
+        ForwardAuthorization(request);
+        using var response = await _httpClient.SendAsync(request);
+        return new ContentResult
+        {
+            StatusCode = (int)response.StatusCode,
+            ContentType = "application/json",
+            Content = await response.Content.ReadAsStringAsync()
+        };
+    }
+
+    [HttpPost("{id:long}/complete")]
+    public async Task<ActionResult> Complete(long id)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/projects/{id}/complete");
+        ForwardAuthorization(request);
+        using var response = await _httpClient.SendAsync(request);
+        return new ContentResult
+        {
+            StatusCode = (int)response.StatusCode,
+            ContentType = "application/json",
+            Content = await response.Content.ReadAsStringAsync()
+        };
+    }
+
     private void ForwardAuthorization(HttpRequestMessage request)
     {
         if (Request.Headers.Authorization.ToString() is { Length: > 0 } header)

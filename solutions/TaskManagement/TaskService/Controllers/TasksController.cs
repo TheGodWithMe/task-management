@@ -112,11 +112,11 @@ public class TasksController : ControllerBase
         if (priority == null)
             return BadRequest(new { message = $"Приоритет '{request.Priority}' не найден" });
 
-        var number = await _context.Tasks.CountAsync() + 1;
+
 
         var task = new DomainTask
         {
-            Number = number,
+
             Name = request.Name,
             Description = request.Description,
             CreatedAt = DateTime.UtcNow,
@@ -144,10 +144,21 @@ public class TasksController : ControllerBase
             task.Status = "Назначена";
         }
 
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        // Блокировка сериализует выдачу номеров и учитывает существующие задачи.
+        await _context.Database.ExecuteSqlRawAsync("LOCK TABLE tasks IN EXCLUSIVE MODE");
+        task.Number = (await _context.Tasks.MaxAsync(t => (int?)t.Number) ?? 0) + 1;
+        task.History.Add(new TaskHistory
+        {
+            FromStatus = "—",
+            ToStatus = task.Status,
+            Comment = "Задача создана",
+            AuthorId = authorId,
+            ChangedAt = task.CreatedAt
+        });
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
-
-        await AddHistoryAsync(task.Id, "—", task.Status, "Задача создана", authorId);
+        await transaction.CommitAsync();
 
         _logger.Info($"Задача {task.Id} создана со статусом «{task.Status}»");
         return Ok(ToResponse(task));
@@ -167,7 +178,7 @@ public class TasksController : ControllerBase
             return BadRequest(new { message = "Назначение исполнителя недоступно в текущем статусе" });
         var previous = task.Status;
         var executor = await _context.Users.FindAsync(executorId);
-        if (executor == null)
+        if (executor == null || executor.Role != "Исполнитель")
             return BadRequest(new { message = $"Исполнитель {executorId} не найден" });
 
         var isParticipant = await _context.Participations
